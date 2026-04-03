@@ -45,3 +45,23 @@
         (handler req resp ex)
         (is (not (realized? ex)))
         (is (= (:body @resp) "1.2.3.4"))))))
+
+
+(deftest test-wrap-forwarded-proto
+  (let [handler (wrap-forwarded-scheme (comp response :scheme))]
+    (testing "without x-forwarded-proto"
+      (let [req (request :get "/")
+            resp (handler req)]
+        (is (= (:body resp) :http))))
+
+    (testing "with x-forwarded-proto"
+      (let [req (-> (request :get "/")
+                    (header  "x-forwarded-proto" "https"))
+            resp (handler req)]
+        (is (= (:body resp) :https))))
+
+    (testing "unknown schemes are ignored"
+      (let [req (->  (request :get "/")
+                     (header "x-forwarded-proto" "ftp"))
+            resp (handler req)]
+        (is (= (:body resp) :http))))))

@@ -20,3 +20,30 @@
      (handler (forwarded-remote-addr-request request)))
     ([request respond raise]
      (handler (forwarded-remote-addr-request request) respond raise))))
+
+;; x-forwarded-proto header support
+(def ^:private proto-lookup
+  {"http" :http
+   "https" :https
+   "ws" :ws
+   "wss" :wss})
+
+(defn forwarded-scheme-request
+  "Change the :scheme key of the request map to the last value present in
+  the X-Forwarded-Proto header. See: wrap-forwarded-scheme."
+  [request]
+  (if-let [forwarded-proto (get-in request [:headers "x-forwarded-proto"])]
+    (if-let [scheme (proto-lookup (str/lower-case (str/trim forwarded-proto)))]
+      (assoc request :scheme scheme)
+      request)
+    request))
+
+(defn wrap-forwarded-scheme
+  "Middleware that changes the :scheme of the request map to the
+  last value present in the X-Forwarded-Proto header."
+  [handler]
+  (fn
+    ([request]
+     (handler (forwarded-scheme-request request)))
+    ([request respond raise]
+     (handler (forwarded-scheme-request request) respond raise))))
